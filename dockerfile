@@ -1,15 +1,17 @@
-# Stage 1: Build
+
 FROM node:18-alpine AS build
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci
+
+RUN npm install --legacy-peer-deps
+
 
 COPY . .
+
 RUN npm run build
 
-# Stage 2: Nginx
 FROM nginx:alpine
 
 RUN deluser --remove-home nginx && \
