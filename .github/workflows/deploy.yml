@@ -3,6 +3,7 @@ name: CI/CD Frontend to AWS
 on:
   push:
     branches: [ "deploy" ]
+  workflow_dispatch:
 
 env:
   AWS_REGION: us-east-1
@@ -19,6 +20,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
       
       - name: Login to ECR
@@ -37,8 +39,14 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            # Login a ECR desde la EC2
+            aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+            # Pull la nueva imagen
             docker pull ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
+            # Detener y eliminar contenedor viejo si existe
             docker stop innovatech-frontend || true
             docker rm innovatech-frontend || true
+            # Ejecutar nuevo contenedor
             docker run -d --name innovatech-frontend -p 80:80 ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
+            # Limpiar imágenes no usadas
             docker image prune -f
